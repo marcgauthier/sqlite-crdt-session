@@ -8,3 +8,8 @@ __pycache__/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+build/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+benchmark-*.json
