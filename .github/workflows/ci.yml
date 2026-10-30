@@ -1,0 +1,17 @@
+name: C11 extension tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SQLite and toolchain
+        run: sudo apt-get update && sudo apt-get install -y build-essential libsqlite3-dev python3
+      - name: Verify SQLite Session and preupdate-hook support
+        run: python3 -c "import sqlite3; opts = {row[0] for row in sqlite3.connect(':memory:').execute('pragma compile_options')}; print(sorted(opts)); assert 'ENABLE_SESSION' in opts and 'ENABLE_PREUPDATE_HOOK' in opts"
+      - run: make
+      - run: make test
+      - name: Smoke benchmark
+        run: python3 tests/bench_write.py --rows 1000 --batch 100
