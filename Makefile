@@ -15,3 +15,13 @@ test: crdtsession.so
 
 clean:
 	rm -f crdtsession.so
+
+# Build crdtsession.so and benchmark against a separately installed cr-sqlite binary.
+# Example: make bench-compare CRSQLITE=/tmp/crsqlite.so
+CRSQLITE ?= build/benchmark/crsqlite.so
+.PHONY: bench-compare bench-fetch
+bench-compare: crdtsession.so
+	python3 tests/bench_write.py --crsqlite "$(CRSQLITE)" --require-crsqlite --rows 10000 --batch 100 --storage file --repeats 3
+
+bench-fetch:
+	python3 tools/fetch_crsqlite.py --output "$(CRSQLITE)"
