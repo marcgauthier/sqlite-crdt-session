@@ -1,7 +1,8 @@
-name: C11 extension tests
+name: C11 extension tests and benchmarks
 on:
   push:
   pull_request:
+  workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-24.04
@@ -13,5 +14,24 @@ jobs:
         run: python3 -c "import sqlite3; opts = {row[0] for row in sqlite3.connect(':memory:').execute('pragma compile_options')}; print(sorted(opts)); assert 'ENABLE_SESSION' in opts and 'ENABLE_PREUPDATE_HOOK' in opts"
       - run: make
       - run: make test
-      - name: Smoke benchmark
-        run: python3 tests/bench_write.py --rows 1000 --batch 100
+      - name: Local smoke benchmark (two engines)
+        run: python3 tests/bench_write.py --rows 1000 --batch 100 --repeats 1
+  benchmark-crsqlite:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SQLite and toolchain
+        run: sudo apt-get update && sudo apt-get install -y build-essential libsqlite3-dev python3
+      - run: make
+      - name: Download official cr-sqlite v0.16.3 Linux x86-64 release
+        run: python3 tools/fetch_crsqlite.py --version v0.16.3 --output build/benchmark/crsqlite.so
+      - name: Three-way comparison (in memory)
+        run: python3 tests/bench_write.py --crsqlite build/benchmark/crsqlite.so --require-crsqlite --storage memory --rows 10000 --batch 100 --repeats 3 --json benchmark-memory.json
+      - name: Three-way comparison (WAL, FULL synchronous)
+        run: python3 tests/bench_write.py --crsqlite build/benchmark/crsqlite.so --require-crsqlite --storage file --rows 10000 --batch 100 --repeats 3 --json benchmark-wal.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: crsqlite-comparison
+          path: benchmark-*.json
+          if-no-files-found: ignore
